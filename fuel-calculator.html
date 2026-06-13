@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trip Fuel Calculator</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: rgba(255,255,255,0.08); --border-hi: rgba(255,255,255,0.18);
+    --text: #f0f2f8; --muted: #8890aa;
+    --accent: #f97316; --accent-dim: rgba(249,115,22,0.15); --accent-glow: rgba(249,115,22,0.25);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+    --red: #f43f5e;   --red-dim: rgba(244,63,94,0.12);
+    --yellow: #facc15; --yellow-dim: rgba(250,204,21,0.12);
+    --blue: #60a5fa;   --blue-dim: rgba(96,165,250,0.12);
+    --purple: #a78bfa; --purple-dim: rgba(167,139,250,0.12);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 0 0 48px; }
+  .app { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  header { text-align: center; margin-bottom: 20px; padding-top: 24px; }
+  .header-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-dim); border: 1px solid var(--accent-glow); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 20px; }
+  header h1 { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; }
+  header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* ── FUEL PRICE BANNER ── */
+  .price-banner {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .price-banner-label { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .fuel-type-toggle { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+  .fuel-type-btn { padding: 5px 11px; border: none; background: var(--surface2); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.12s; }
+  .fuel-type-btn.active { background: var(--accent); color: #fff; }
+  .price-input-wrap { flex: 1; position: relative; min-width: 0; }
+  .price-input-wrap .rupee { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--muted); pointer-events: none; }
+  .price-input-wrap input { width: 100%; padding: 6px 10px 6px 24px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 14px; font-weight: 600; outline: none; -moz-appearance: textfield; }
+  .price-input-wrap input:focus { border-color: var(--accent); }
+  .price-input-wrap input::-webkit-outer-spin-button,
+  .price-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .price-set-hint { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+  /* ── NAV TABS ── */
+  .nav-tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--surface); border-radius: var(--radius); padding: 4px; gap: 4px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .nav-tab { padding: 9px 6px; border-radius: var(--radius-sm); border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; line-height: 1; }
+  .nav-tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border-hi); }
+  .nav-tab svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-tab .track-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: none; margin-left: 2px; }
+  .nav-tab .track-dot.live { display: inline-block; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── MODE TOGGLE ── */
+  .mode-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--surface2); border-radius: var(--radius-sm); padding: 3px; gap: 3px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .mode-btn { padding: 8px 6px; border-radius: 6px; border: none; background: transparent; color: var(--muted); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; line-height: 1.3; text-align: center; }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+
+  /* ── CARDS / FIELDS ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+  .card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 7px; }
+  input[type=number] { width: 100%; padding: 10px 13px; border-radius: var(--radius-sm); background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 15px; outline: none; transition: border 0.15s; -moz-appearance: textfield; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type=number]:focus { border-color: var(--accent); }
+
+  /* ── FUEL BAR ── */
+  .fuel-bar-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .fuel-bar-label span { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .fuel-bar-label .bar-value { font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-dim); padding: 2px 10px; border-radius: 20px; border: 1px solid var(--accent-glow); }
+  .bar-visual { position: relative; height: 44px; cursor: pointer; user-select: none; touch-action: none; }
+  .bar-track { position: absolute; top: 50%; transform: translateY(-50%); left: 0; right: 0; height: 10px; background: var(--surface2); border-radius: 6px; border: 1px solid var(--border); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg,#f97316,#fb923c); transition: width 0.08s; }
+  .bar-ticks { position: absolute; top: 0; left: 0; right: 0; height: 100%; }
+  .tick { position: absolute; bottom: 2px; font-size: 10px; color: var(--muted); transform: translateX(-50%); }
+  .bar-handle { position: absolute; top: 50%; width: 22px; height: 22px; background: var(--accent); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%,-50%); box-shadow: 0 0 0 3px var(--accent-glow); transition: left 0.08s; cursor: grab; touch-action: none; }
+  .bar-handle:active { cursor: grabbing; }
+
+  .preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-btn { padding: 5px 12px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s; }
+  .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .calc-btn { width: 100%; padding: 13px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .calc-btn:hover { opacity: 0.92; }
+  .calc-btn:active { transform: scale(0.98); }
+  .calc-btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border-hi); }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .calc-btn { flex: 1; }
+
+  /* ── RESULTS ── */
+  .result { display: none; margin-top: 14px; }
+  .result.show { display: block; }
+  .result-hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; text-align: center; }
+  .result-hero .label { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .result-hero .value { font-size: 40px; font-weight: 700; letter-spacing: -1px; color: var(--accent); }
+  .result-hero .unit  { font-size: 17px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+  .result-hero .sub   { font-size: 13px; color: var(--muted); margin-top: 7px; line-height: 1.5; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
+  .result-mini { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; }
+  .result-mini .rl { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .result-mini .rv { font-size: 19px; font-weight: 600; }
+  .result-mini.good .rv    { color: var(--green); }
+  .result-mini.warn .rv    { color: var(--yellow); }
+  .result-mini.bad .rv     { color: var(--red); }
+  .result-mini.neutral .rv { color: var(--muted); }
+  .result-mini.blue .rv    { color: var(--blue); }
+  .result-mini.purple .rv  { color: var(--purple); }
+
+  /* ── PRICE RESULT CARD ── */
+  .price-card {
+    background: var(--purple-dim); border: 1px solid rgba(167,139,250,0.3);
+    border-radius: var(--radius); padding: 14px 16px; margin-top: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .price-card .pc-label { font-size: 12px; color: var(--purple); font-weight: 500; }
+  .price-card .pc-type  { font-size: 11px; color: rgba(167,139,250,0.7); margin-top: 2px; }
+  .price-card .pc-value { font-size: 28px; font-weight: 700; color: var(--purple); letter-spacing: -0.5px; }
+  .price-card .pc-unit  { font-size: 14px; color: rgba(167,139,250,0.8); margin-left: 1px; }
+  .price-card-no-price  { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 10px; font-size: 13px; color: var(--muted); text-align: center; }
+
+  /* ── WARNINGS ── */
+  .trip-warning { border-radius: var(--radius-sm); padding: 12px 13px; font-size: 13px; line-height: 1.5; margin-top: 10px; display: none; }
+  .trip-warning.show   { display: block; }
+  .trip-warning.ok     { background: var(--green-dim);  border: 1px solid rgba(34,197,94,0.3);  color: var(--green); }
+  .trip-warning.caution{ background: var(--yellow-dim); border: 1px solid rgba(250,204,21,0.3); color: var(--yellow); }
+  .trip-warning.danger { background: var(--red-dim);    border: 1px solid rgba(244,63,94,0.3);  color: var(--red); }
+  .trip-warning.info   { background: var(--blue-dim);   border: 1px solid rgba(96,165,250,0.3); color: var(--blue); }
+
+  /* ── SECTION / MODE VISIBILITY ── */
+  .section-wrap { display: none; }
+  .section-wrap.active { display: block; }
+  .mode-content { display: none; }
+  .mode-content.active { display: block; }
+
+  /* ── TRACKER SPECIFIC ── */
+  .live-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--green); margin-bottom: 14px; }
+  .live-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+  .progress-wrap { margin: 8px 0 4px; }
+  .progress-track { height: 8px; background: var(--surface2); border-radius: 4px; border: 1px solid var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; }
+  .stat-card .sc-label { font-size: 11px; color: var(--muted); margin-bottom: 3px; font-weight: 500; }
+  .stat-card .sc-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; }
+  .stat-card .sc-unit  { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .stat-card.accent-card  { border-color: var(--accent-glow); background: var(--accent-dim); }
+  .stat-card.accent-card .sc-value { color: var(--accent); }
+  .stat-card.green-card   { border-color: rgba(34,197,94,0.3); background: var(--green-dim); }
+  .stat-card.green-card .sc-value { color: var(--green); }
+  .stat-card.red-card     { border-color: rgba(244,63,94,0.3); background: var(--red-dim); }
+  .stat-card.red-card .sc-value { color: var(--red); }
+  .stat-card.blue-card    { border-color: rgba(96,165,250,0.3); background: var(--blue-dim); }
+  .stat-card.blue-card .sc-value { color: var(--blue); }
+  .stat-card.purple-card  { border-color: rgba(167,139,250,0.3); background: var(--purple-dim); }
+  .stat-card.purple-card .sc-value { color: var(--purple); }
+  .fuel-compare { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 17px; margin-bottom: 14px; }
+  .fuel-compare-title { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 13px; }
+  .fuel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fuel-row:last-child { margin-bottom: 0; }
+  .fuel-row-label { font-size: 12px; color: var(--muted); width: 56px; flex-shrink: 0; }
+  .fuel-bar-mini { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .fuel-bar-mini-fill { height: 100%; border-radius: 4px; }
+  .fuel-row-val { font-size: 13px; font-weight: 600; width: 36px; text-align: right; flex-shrink: 0; }
+  .verdict { border-radius: var(--radius); padding: 15px 17px; margin-bottom: 14px; border: 1px solid; text-align: center; }
+  .verdict .v-icon  { font-size: 22px; margin-bottom: 5px; }
+  .verdict .v-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .verdict .v-sub   { font-size: 13px; opacity: 0.85; line-height: 1.5; }
+  .verdict.ok      { background: var(--green-dim);  border-color: rgba(34,197,94,0.3);  color: var(--green); }
+  .verdict.caution { background: var(--yellow-dim); border-color: rgba(250,204,21,0.3); color: var(--yellow); }
+  .verdict.danger  { background: var(--red-dim);    border-color: rgba(244,63,94,0.3);  color: var(--red); }
+  .sdiv { height: 1px; background: var(--border); margin: 4px 0 18px; }
+  .tracker-live { display: none; }
+  .tracker-live.show { display: block; }
+
+  footer { text-align: center; margin-top: 32px; font-size: 12px; color: var(--muted); }
+  footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-icon">⛽</div>
+    <h1>Trip Fuel Calculator</h1>
+    <p>Plan · track · return Zoomcar right</p>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       FUEL PRICE BANNER — global, always visible
+  ═══════════════════════════════════════ -->
+  <div class="price-banner">
+    <span class="price-banner-label">Fuel price</span>
+    <div class="fuel-type-toggle">
+      <button class="fuel-type-btn active" id="btn-petrol" onclick="setFuelType('petrol',this)">Petrol</button>
+      <button class="fuel-type-btn"        id="btn-diesel" onclick="setFuelType('diesel',this)">Diesel</button>
+    </div>
+    <div class="price-input-wrap">
+      <span class="rupee">₹</span>
+      <input type="number" id="global-price" placeholder="102.50" min="1" max="200" step="0.5"
+             oninput="savePriceToStorage()" value="">
+    </div>
+    <span class="price-set-hint" id="price-hint">per litre</span>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       NAV TABS
+  ═══════════════════════════════════════ -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchNav('bike')" id="nav-bike">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="17.5" r="3"/><circle cx="18.5" cy="17.5" r="3"/><path d="M15 6h-5l-1.5 5.5h8L15 6z"/><path d="M5.5 17.5L9 10"/><path d="M18.5 17.5L16.5 11.5"/></svg>
+      Bike
+    </button>
+    <button class="nav-tab" onclick="switchNav('car')" id="nav-car">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 17H3a1 1 0 0 1-1-1v-4l2-6h14l2 6v4a1 1 0 0 1-1 1h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/><path d="M5.5 11h13"/></svg>
+      Car
+    </button>
+    <button class="nav-tab" onclick="switchNav('track')" id="nav-track">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Track
+      <span class="track-dot" id="track-dot"></span>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       BIKE
+  ═══════════════════════════════════════ -->
+  <div id="bike-section" class="section-wrap active">
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="switchMode('b','trip')"   id="b-mode-trip">Fuel for trip</button>
+      <button class="mode-btn"        onclick="switchMode('b','return')" id="b-mode-return">Return level</button>
+      <button class="mode-btn"        onclick="switchMode('b','range')"  id="b-mode-range">Range check</button>
+    </div>
+
+    <div id="b-trip" class="mode-content active">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="bt-tank" placeholder="e.g. 12" min="1" max="50" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="bt-mileage" placeholder="e.g. 45" min="1" max="150" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Trip distance</div>
+        <div class="field"><label>Total km to cover</label><input type="number" id="bt-km" placeholder="e.g. 120" min="1" max="2000" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="bt-bar-display">100%</span></div>
+        <div class="bar-visual" id="bt-bar" data-id="bt"><div class="bar-track"><div class="bar-fill" id="bt-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="bt-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <button class="calc-btn" onclick="calcTrip('b')">Calculate fuel needed →</button>
+      <div class="result" id="bt-result"></div>
+    </div>
+
+    <div id="b-return" class="mode-content">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="br2-tank" placeholder="e.g. 12" min="1" max="50" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="br2-mileage" placeholder="e.g. 45" min="1" max="150" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="br2-bar-display">100%</span></div>
+        <div class="bar-visual" id="br2-bar" data-id="br2"><div class="bar-track"><div class="bar-fill" id="br2-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="br2-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pickup level (owner gave)</div>
+        <div class="fuel-bar-label"><span>Set pickup level</span><span class="bar-value" id="bpk-bar-display">100%</span></div>
+        <div class="bar-visual" id="bpk-bar" data-id="bpk"><div class="bar-track"><div class="bar-fill" id="bpk-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="bpk-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+        <div class="preset-row" style="margin-top:12px" id="b-pickup-presets">
+          <button class="preset-btn active" onclick="setPickupPreset('b',100,this)">Full</button>
+          <button class="preset-btn" onclick="setPickupPreset('b',75,this)">¾</button>
+          <button class="preset-btn" onclick="setPickupPreset('b',50,this)">½</button>
+          <button class="preset-btn" onclick="setPickupPreset('b',25,this)">¼</button>
+        </div>
+      </div>
+      <button class="calc-btn" onclick="calcReturn('b')">Calculate fuel to add →</button>
+      <div class="result" id="br2-result"></div>
+    </div>
+
+    <div id="b-range" class="mode-content">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="brg-tank" placeholder="e.g. 12" min="1" max="50" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="brg-mileage" placeholder="e.g. 45" min="1" max="150" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="brg-bar-display">100%</span></div>
+        <div class="bar-visual" id="brg-bar" data-id="brg"><div class="bar-track"><div class="bar-fill" id="brg-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="brg-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <button class="calc-btn" onclick="calcRange('brg')">Calculate range →</button>
+      <div class="result" id="brg-result"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       CAR
+  ═══════════════════════════════════════ -->
+  <div id="car-section" class="section-wrap">
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="switchMode('c','trip')"   id="c-mode-trip">Fuel for trip</button>
+      <button class="mode-btn"        onclick="switchMode('c','return')" id="c-mode-return">Return level</button>
+      <button class="mode-btn"        onclick="switchMode('c','range')"  id="c-mode-range">Range check</button>
+    </div>
+
+    <div id="c-trip" class="mode-content active">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="ct-tank" placeholder="e.g. 40" min="1" max="120" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="ct-mileage" placeholder="e.g. 18" min="1" max="100" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Trip distance</div>
+        <div class="field"><label>Total km to cover</label><input type="number" id="ct-km" placeholder="e.g. 250" min="1" max="3000" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="ct-bar-display">100%</span></div>
+        <div class="bar-visual" id="ct-bar" data-id="ct"><div class="bar-track"><div class="bar-fill" id="ct-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="ct-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <button class="calc-btn" onclick="calcTrip('c')">Calculate fuel needed →</button>
+      <div class="result" id="ct-result"></div>
+    </div>
+
+    <div id="c-return" class="mode-content">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="cr2-tank" placeholder="e.g. 40" min="1" max="120" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="cr2-mileage" placeholder="e.g. 18" min="1" max="100" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="cr2-bar-display">100%</span></div>
+        <div class="bar-visual" id="cr2-bar" data-id="cr2"><div class="bar-track"><div class="bar-fill" id="cr2-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="cr2-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pickup level (owner gave)</div>
+        <div class="fuel-bar-label"><span>Set pickup level</span><span class="bar-value" id="cpk-bar-display">100%</span></div>
+        <div class="bar-visual" id="cpk-bar" data-id="cpk"><div class="bar-track"><div class="bar-fill" id="cpk-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="cpk-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+        <div class="preset-row" style="margin-top:12px" id="c-pickup-presets">
+          <button class="preset-btn active" onclick="setPickupPreset('c',100,this)">Full</button>
+          <button class="preset-btn" onclick="setPickupPreset('c',75,this)">¾</button>
+          <button class="preset-btn" onclick="setPickupPreset('c',50,this)">½</button>
+          <button class="preset-btn" onclick="setPickupPreset('c',25,this)">¼</button>
+        </div>
+      </div>
+      <button class="calc-btn" onclick="calcReturn('c')">Calculate fuel to add →</button>
+      <div class="result" id="cr2-result"></div>
+    </div>
+
+    <div id="c-range" class="mode-content">
+      <div class="card">
+        <div class="card-title">Vehicle specs</div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="crg-tank" placeholder="e.g. 40" min="1" max="120" step="0.5"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="crg-mileage" placeholder="e.g. 18" min="1" max="100" step="1"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Current fuel level</div>
+        <div class="fuel-bar-label"><span>Drag to set level</span><span class="bar-value" id="crg-bar-display">100%</span></div>
+        <div class="bar-visual" id="crg-bar" data-id="crg"><div class="bar-track"><div class="bar-fill" id="crg-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="crg-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+      </div>
+      <button class="calc-btn" onclick="calcRange('crg')">Calculate range →</button>
+      <div class="result" id="crg-result"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       TRIP TRACKER
+  ═══════════════════════════════════════ -->
+  <div id="track-section" class="section-wrap">
+
+    <div id="tracker-setup">
+      <div class="card">
+        <div class="card-title">Trip setup</div>
+        <div class="field"><label>Total trip distance (km)</label><input type="number" id="trk-total-km" placeholder="e.g. 180" min="1" max="3000" step="1"></div>
+        <div class="field"><label>Claimed mileage (km / litre)</label><input type="number" id="trk-mileage" placeholder="e.g. 18" min="1" max="150" step="1"></div>
+        <div class="field"><label>Tank capacity (litres)</label><input type="number" id="trk-tank" placeholder="e.g. 40" min="1" max="120" step="0.5"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">At trip start — odometer &amp; fuel</div>
+        <div class="field"><label>Odometer at start (dashboard reading)</label><input type="number" id="trk-start-odo" placeholder="e.g. 14250" min="0" max="999999" step="1"></div>
+        <div class="field">
+          <div class="fuel-bar-label"><span>Fuel level at start</span><span class="bar-value" id="trks-bar-display">100%</span></div>
+          <div class="bar-visual" id="trks-bar" data-id="trks"><div class="bar-track"><div class="bar-fill" id="trks-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="trks-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+        </div>
+      </div>
+      <button class="calc-btn" onclick="startTrip()">Start tracking this trip →</button>
+    </div>
+
+    <div class="tracker-live" id="tracker-live">
+      <div class="live-pill"><span class="dot"></span> Trip in progress</div>
+      <div class="card">
+        <div class="card-title">Update now — current readings</div>
+        <div class="field"><label>Current odometer (dashboard right now)</label><input type="number" id="trk-cur-odo" placeholder="e.g. 14380" min="0" max="999999" step="1"></div>
+        <div class="field">
+          <div class="fuel-bar-label"><span>Current fuel level</span><span class="bar-value" id="trkc-bar-display">100%</span></div>
+          <div class="bar-visual" id="trkc-bar" data-id="trkc"><div class="bar-track"><div class="bar-fill" id="trkc-bar-fill" style="width:100%"></div></div><div class="bar-handle" id="trkc-bar-handle" style="left:100%"></div><div class="bar-ticks"><span class="tick" style="left:0%">E</span><span class="tick" style="left:25%">¼</span><span class="tick" style="left:50%">½</span><span class="tick" style="left:75%">¾</span><span class="tick" style="left:100%">F</span></div></div>
+        </div>
+        <button class="calc-btn" style="margin-top:4px" onclick="updateTracking()">Update dashboard →</button>
+      </div>
+
+      <div id="trk-dashboard" style="display:none">
+        <div class="stat-grid" id="trk-stat-grid"></div>
+        <div class="card" id="trk-km-card">
+          <div class="card-title">Trip progress</div>
+          <div class="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" id="trk-progress-fill" style="width:0%;background:var(--accent)"></div></div>
+            <div class="progress-labels"><span id="trk-km-done">0 km done</span><span id="trk-km-total">— km total</span></div>
+          </div>
+        </div>
+        <div class="fuel-compare" id="trk-fuel-compare">
+          <div class="fuel-compare-title">Fuel status</div>
+          <div class="fuel-row"><span class="fuel-row-label" style="color:var(--muted)">At start</span><div class="fuel-bar-mini"><div class="fuel-bar-mini-fill" id="fc-start-fill" style="background:var(--muted)"></div></div><span class="fuel-row-val" id="fc-start-val" style="color:var(--muted)">—</span></div>
+          <div class="fuel-row"><span class="fuel-row-label" style="color:var(--accent)">Now</span><div class="fuel-bar-mini"><div class="fuel-bar-mini-fill" id="fc-now-fill" style="background:var(--accent)"></div></div><span class="fuel-row-val" id="fc-now-val" style="color:var(--accent)">—</span></div>
+          <div class="fuel-row"><span class="fuel-row-label" style="color:var(--blue)">Needed</span><div class="fuel-bar-mini"><div class="fuel-bar-mini-fill" id="fc-need-fill" style="background:var(--blue)"></div></div><span class="fuel-row-val" id="fc-need-val" style="color:var(--blue)">—</span></div>
+        </div>
+        <div id="trk-verdict"></div>
+        <div id="trk-price-card"></div>
+      </div>
+
+      <div class="sdiv"></div>
+      <div class="btn-row"><button class="calc-btn secondary" onclick="resetTrip()">End &amp; reset trip</button></div>
+    </div>
+  </div>
+
+  <footer>Made for weekend trips &nbsp;·&nbsp; <span>⛽</span> Fuel Calculator</footer>
+</div>
+
+<script>
+// ─── GLOBALS ────────────────────────────────
+const barState = {};
+const displayMap = {
+  bt:'bt-bar-display', br2:'br2-bar-display', bpk:'bpk-bar-display', brg:'brg-bar-display',
+  ct:'ct-bar-display',  cr2:'cr2-bar-display',  cpk:'cpk-bar-display',  crg:'crg-bar-display',
+  trks:'trks-bar-display', trkc:'trkc-bar-display'
+};
+let fuelType = 'petrol';
+
+// ─── FUEL PRICE HELPERS ──────────────────────
+function getFuelPrice() {
+  return parseFloat(document.getElementById('global-price').value) || 0;
+}
+function getFuelTypeName() { return fuelType === 'petrol' ? 'Petrol' : 'Diesel'; }
+function setFuelType(type, btn) {
+  fuelType = type;
+  document.getElementById('btn-petrol').classList.toggle('active', type==='petrol');
+  document.getElementById('btn-diesel').classList.toggle('active', type==='diesel');
+  try { localStorage.setItem('fuelType', type); } catch(e){}
+}
+function savePriceToStorage() {
+  try { localStorage.setItem('fuelPrice', document.getElementById('global-price').value); } catch(e){}
+}
+
+// Returns a price card HTML string given litres to add. Pass 0 or negative to show "no top-up needed".
+function priceCardHTML(litres, label) {
+  const price = getFuelPrice();
+  if (!price || price <= 0) {
+    return `<div class="price-card-no-price">Set fuel price above to see cost estimate</div>`;
+  }
+  if (litres <= 0) {
+    return `<div class="price-card"><div><div class="pc-label">${label || 'Cost to top up'}</div><div class="pc-type">${getFuelTypeName()} @ ₹${price}/L</div></div><div><span class="pc-value" style="color:var(--green)">₹0</span></div></div>`;
+  }
+  const cost = litres * price;
+  return `<div class="price-card"><div><div class="pc-label">${label || 'Estimated cost'}</div><div class="pc-type">${getFuelTypeName()} @ ₹${price}/L · ${litres.toFixed(1)} L</div></div><div><span class="pc-value">₹${Math.round(cost)}</span><span class="pc-unit"></span></div></div>`;
+}
+
+// ─── BAR DRAG ────────────────────────────────
+function initBar(barEl) {
+  const id = barEl.dataset.id; barState[id] = 100;
+  barEl.addEventListener('mousedown', startDrag);
+  barEl.addEventListener('touchstart', startDrag, { passive: false });
+}
+function startDrag(e) {
+  const barEl = e.currentTarget, id = barEl.dataset.id, isTouch = e.type==='touchstart';
+  if (isTouch) e.preventDefault();
+  function getPct(ev) {
+    const r = barEl.getBoundingClientRect();
+    const x = isTouch ? ev.touches[0].clientX : ev.clientX;
+    return Math.round(Math.max(0, Math.min(100, ((x-r.left)/r.width)*100)) / 5) * 5;
+  }
+  function update(ev) { setBarValue(id, getPct(ev)); }
+  update(e);
+  const mv = isTouch?'touchmove':'mousemove', up = isTouch?'touchend':'mouseup';
+  const onMv = ev => { if(isTouch) ev.preventDefault(); update(ev); };
+  const onUp = () => { document.removeEventListener(mv,onMv); document.removeEventListener(up,onUp); };
+  document.addEventListener(mv, onMv, {passive:false});
+  document.addEventListener(up, onUp);
+}
+function setBarValue(id, pct) {
+  barState[id] = pct;
+  const fill = document.getElementById(id+'-bar-fill');
+  const hndl = document.getElementById(id+'-bar-handle');
+  const disp = document.getElementById(displayMap[id]);
+  if (fill) { fill.style.width=pct+'%'; fill.style.background = pct<=15?'linear-gradient(90deg,#f43f5e,#fb7185)':'linear-gradient(90deg,#f97316,#fb923c)'; }
+  if (hndl) hndl.style.left=pct+'%';
+  if (disp) disp.textContent=pct+'%';
+}
+function setPickupPreset(prefix, val, btn) {
+  const id = prefix==='b'?'bpk':'cpk';
+  setBarValue(id, val);
+  document.getElementById(prefix+'-pickup-presets').querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── NAVIGATION ──────────────────────────────
+function switchNav(tab) {
+  ['bike','car','track'].forEach(t => {
+    document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+    document.getElementById(t+'-section').classList.toggle('active', t===tab);
+  });
+}
+function switchMode(prefix, mode) {
+  ['trip','return','range'].forEach(m => {
+    document.getElementById(prefix+'-mode-'+m).classList.toggle('active', m===mode);
+    document.getElementById(prefix+'-'+m).classList.toggle('active', m===mode);
+  });
+}
+
+// ─── HELPERS ─────────────────────────────────
+function getVal(id) { return parseFloat(document.getElementById(id).value); }
+function showError(el, msg) { el.innerHTML=`<div class="trip-warning danger show">${msg}</div>`; el.classList.add('show'); }
+
+// ─── CALC: TRIP MODE ─────────────────────────
+function calcTrip(prefix) {
+  const tank=getVal(prefix+'t-tank'), mileage=getVal(prefix+'t-mileage'), km=getVal(prefix+'t-km');
+  const level=barState[prefix+'t']??100;
+  const el=document.getElementById(prefix+'t-result');
+  if (!tank||!mileage||!km) { showError(el,'Please fill in tank size, mileage, and trip km.'); return; }
+
+  const realMpL=mileage*0.85, needed=km/realMpL, haveL=(level/100)*tank;
+  const shortfall=needed-haveL, hasEnough=shortfall<=0, surplus=-shortfall;
+
+  let html=`<div class="result-hero">
+    <div class="label">${hasEnough?'Tank already has enough fuel':'Fuel to add for this trip'}</div>
+    <div class="value" style="color:${hasEnough?'var(--green)':'var(--accent)'}">
+      ${(hasEnough?surplus:shortfall).toFixed(1)}<span class="unit">L ${hasEnough?'spare':'needed'}</span>
+    </div>
+    <div class="sub">${km} km needs <strong>${needed.toFixed(1)} L</strong> at realistic mileage (${Math.round(realMpL)} km/L).<br>You have ${haveL.toFixed(1)} L (${level}% of ${tank} L).</div>
+  </div>
+  <div class="result-grid">
+    <div class="result-mini neutral"><div class="rl">Fuel needed (realistic)</div><div class="rv">${needed.toFixed(1)} L</div></div>
+    <div class="result-mini neutral"><div class="rl">Fuel needed (claimed)</div><div class="rv">${(km/mileage).toFixed(1)} L</div></div>
+    <div class="result-mini ${hasEnough?'good':'bad'}"><div class="rl">Range right now</div><div class="rv">${Math.round(haveL*realMpL)} km</div></div>
+    <div class="result-mini ${hasEnough?'good':'warn'}"><div class="rl">Range after top-up</div><div class="rv">${hasEnough?'—':Math.round((haveL+shortfall)*realMpL)+' km'}</div></div>
+  </div>`;
+  // Cost card
+  html += priceCardHTML(hasEnough ? 0 : shortfall, 'Cost to top up for this trip');
+  if (hasEnough) html+=`<div class="trip-warning ok show">✓ Enough fuel. ${surplus.toFixed(1)} L to spare after the trip.</div>`;
+  else if (shortfall<2) html+=`<div class="trip-warning caution show">⚠ ${shortfall.toFixed(1)} L short — top up before leaving.</div>`;
+  else html+=`<div class="trip-warning danger show">✗ Add at least ${shortfall.toFixed(1)} L before this trip.</div>`;
+  el.innerHTML=html; el.classList.add('show');
+}
+
+// ─── CALC: RETURN MODE ───────────────────────
+function calcReturn(prefix) {
+  const tank=getVal(prefix+'r2-tank'), mileage=getVal(prefix+'r2-mileage');
+  const level=barState[prefix+'r2']??100, pickup=barState[prefix+'pk']??100;
+  const el=document.getElementById(prefix+'r2-result');
+  if (!tank||!mileage) { showError(el,'Please enter tank capacity and mileage.'); return; }
+
+  const nowL=(level/100)*tank, tgtL=(pickup/100)*tank;
+  if (level>=pickup) {
+    const extra=nowL-tgtL;
+    let html=`<div class="result-hero"><div class="label">More fuel than pickup level</div>
+      <div class="value" style="color:var(--green)">${extra.toFixed(1)}<span class="unit">L extra</span></div>
+      <div class="sub">At ${level}% — owner gave ${pickup}%. No refuel needed.</div></div>`;
+    html += priceCardHTML(0, 'Cost to return');
+    html += `<div class="trip-warning ok show">✓ Return as-is. ${extra.toFixed(1)} L above pickup level.</div>`;
+    el.innerHTML=html; el.classList.add('show'); return;
+  }
+  const toAdd=tgtL-nowL;
+  let html=`<div class="result-hero"><div class="label">Fuel to add to match pickup level</div>
+    <div class="value">${toAdd.toFixed(1)}<span class="unit">L</span></div>
+    <div class="sub">Tank ${level}% → ${pickup}% &nbsp;·&nbsp; ${nowL.toFixed(1)} L → ${tgtL.toFixed(1)} L</div></div>
+  <div class="result-grid">
+    <div class="result-mini neutral"><div class="rl">Range now</div><div class="rv">${Math.round(nowL*mileage*0.85)} km</div></div>
+    <div class="result-mini good"><div class="rl">Range after top-up</div><div class="rv">${Math.round(tgtL*mileage*0.85)} km</div></div>
+  </div>`;
+  html += priceCardHTML(toAdd, 'Cost to top up to return level');
+  el.innerHTML=html; el.classList.add('show');
+}
+
+// ─── CALC: RANGE MODE ────────────────────────
+function calcRange(prefix) {
+  const tank=getVal(prefix+'-tank'), mileage=getVal(prefix+'-mileage');
+  const level=barState[prefix]??100;
+  const el=document.getElementById(prefix+'-result');
+  if (!tank||!mileage) { showError(el,'Please enter tank capacity and mileage.'); return; }
+  const L=(level/100)*tank;
+  let html=`<div class="result-hero">
+    <div class="label">Realistic range at ${level}% (${L.toFixed(1)} L)</div>
+    <div class="value">${Math.round(L*mileage*0.85)}<span class="unit">km</span></div>
+    <div class="sub">~85% of claimed mileage — traffic, AC, load</div>
+  </div>
+  <div class="result-grid">
+    <div class="result-mini neutral"><div class="rl">Claimed (ideal)</div><div class="rv">${Math.round(L*mileage)} km</div></div>
+    <div class="result-mini good"><div class="rl">Safe estimate (75%)</div><div class="rv">${Math.round(L*mileage*0.75)} km</div></div>
+  </div>`;
+  // Cost of current fuel in tank
+  const price=getFuelPrice();
+  if (price>0) {
+    html += `<div class="price-card"><div><div class="pc-label">Value of fuel in tank</div><div class="pc-type">${getFuelTypeName()} @ ₹${price}/L · ${L.toFixed(1)} L</div></div><div><span class="pc-value">₹${Math.round(L*price)}</span></div></div>`;
+  } else {
+    html += `<div class="price-card-no-price">Set fuel price above to see tank value</div>`;
+  }
+  el.innerHTML=html; el.classList.add('show');
+}
+
+// ─── TRIP TRACKER ────────────────────────────
+let tripData = null;
+
+function saveLiveState() {
+  try {
+    const live = { curOdo: getVal('trk-cur-odo'), curFuelPct: barState['trkc']??100 };
+    localStorage.setItem('tripLiveState', JSON.stringify(live));
+  } catch(e){}
+}
+
+function showTrackerLive() {
+  document.getElementById('tracker-setup').style.display='none';
+  document.getElementById('tracker-live').classList.add('show');
+  document.getElementById('track-dot').classList.add('live');
+}
+
+function hideTrackerLive() {
+  document.getElementById('tracker-setup').style.display='';
+  document.getElementById('tracker-live').classList.remove('show');
+  document.getElementById('trk-dashboard').style.display='none';
+  document.getElementById('track-dot').classList.remove('live');
+}
+
+function startTrip() {
+  const totalKm=getVal('trk-total-km'), mileage=getVal('trk-mileage');
+  const tank=getVal('trk-tank'), startOdo=getVal('trk-start-odo');
+  const startFuelPct=barState['trks']??100;
+  if (!totalKm||!mileage||!tank||isNaN(startOdo)) { alert('Please fill in all fields.'); return; }
+  tripData = { totalKm, mileage, tank, startOdo, startFuelPct };
+  try {
+    localStorage.setItem('tripData', JSON.stringify(tripData));
+    localStorage.removeItem('tripLiveState');
+  } catch(e){}
+  showTrackerLive();
+  document.getElementById('trk-cur-odo').value=startOdo;
+  setBarValue('trkc', startFuelPct);
+  updateTracking();
+}
+
+function updateTracking() {
+  if (!tripData) return;
+  const curOdo=getVal('trk-cur-odo'), curFuelPct=barState['trkc']??100;
+  if (isNaN(curOdo)) { alert('Please enter current odometer.'); return; }
+
+  const { totalKm, mileage, tank, startOdo, startFuelPct } = tripData;
+  const realMpL=mileage*0.85;
+  const kmDone=Math.max(0,curOdo-startOdo), kmLeft=Math.max(0,totalKm-kmDone);
+  const progress=Math.min(100,(kmDone/totalKm)*100);
+  const startL=(startFuelPct/100)*tank, curL=(curFuelPct/100)*tank;
+  const usedL=Math.max(0,startL-curL);
+  const actualMpL=kmDone>0&&usedL>0?(kmDone/usedL):realMpL;
+  const effectiveMpL=Math.min(actualMpL, realMpL);
+  const fuelForLeft=kmLeft/effectiveMpL;
+  const canGoKm=curL*effectiveMpL;
+  const shortfall=fuelForLeft-curL, hasEnough=shortfall<=0;
+
+  // Stat cards
+  const price=getFuelPrice();
+  const costUsed=price>0?`₹${Math.round(usedL*price)}`:'—';
+  const costToAdd=price>0&&!hasEnough?`₹${Math.round(shortfall*price)}`:'—';
+
+  document.getElementById('trk-stat-grid').innerHTML=`
+    <div class="stat-card accent-card"><div class="sc-label">Km driven</div><div class="sc-value">${Math.round(kmDone)}<span class="sc-unit"> km</span></div></div>
+    <div class="stat-card blue-card"><div class="sc-label">Km to go</div><div class="sc-value">${Math.round(kmLeft)}<span class="sc-unit"> km</span></div></div>
+    <div class="stat-card ${hasEnough?'green-card':'red-card'}"><div class="sc-label">Fuel remaining</div><div class="sc-value">${curL.toFixed(1)}<span class="sc-unit"> L</span></div></div>
+    <div class="stat-card ${hasEnough?'green-card':'red-card'}"><div class="sc-label">Fuel to add</div><div class="sc-value">${hasEnough?'0':shortfall.toFixed(1)}<span class="sc-unit"> L</span></div></div>
+    <div class="stat-card neutral" style="background:var(--surface)"><div class="sc-label">Fuel used</div><div class="sc-value">${usedL.toFixed(1)}<span class="sc-unit"> L</span></div></div>
+    <div class="stat-card ${price>0?'purple-card':'neutral'}" style="${price<=0?'background:var(--surface)':''}"><div class="sc-label">Fuel cost so far</div><div class="sc-value">${costUsed}</div></div>`;
+
+  // Progress bar
+  document.getElementById('trk-progress-fill').style.width=progress.toFixed(1)+'%';
+  document.getElementById('trk-km-done').textContent=Math.round(kmDone)+' km done';
+  document.getElementById('trk-km-total').textContent=totalKm+' km total';
+
+  // Fuel compare bars
+  document.getElementById('fc-start-fill').style.width=startFuelPct+'%';
+  document.getElementById('fc-start-val').textContent=startL.toFixed(1)+'L';
+  document.getElementById('fc-now-fill').style.width=curFuelPct+'%';
+  document.getElementById('fc-now-val').textContent=curL.toFixed(1)+'L';
+  const needPct=Math.min(100,(fuelForLeft/tank)*100);
+  document.getElementById('fc-need-fill').style.width=needPct.toFixed(1)+'%';
+  document.getElementById('fc-need-val').textContent=fuelForLeft.toFixed(1)+'L';
+
+  // Verdict
+  const verdictEl=document.getElementById('trk-verdict');
+  if (kmLeft<=0) {
+    verdictEl.innerHTML=`<div class="verdict ok"><div class="v-icon">🏁</div><div class="v-title">Trip complete!</div><div class="v-sub">Covered ${Math.round(kmDone)} km · used ${usedL.toFixed(1)} L${price>0?' · total ₹'+Math.round(usedL*price):''}.</div></div>`;
+  } else if (hasEnough) {
+    verdictEl.innerHTML=`<div class="verdict ok"><div class="v-icon">✓</div><div class="v-title">Enough fuel for the rest</div><div class="v-sub">${curL.toFixed(1)} L covers ${Math.round(kmLeft)} km remaining with ${(-shortfall).toFixed(1)} L to spare.</div></div>`;
+  } else if (shortfall<2) {
+    verdictEl.innerHTML=`<div class="verdict caution"><div class="v-icon">⚠</div><div class="v-title">Running a bit low</div><div class="v-sub">Add ~${shortfall.toFixed(1)} L to finish the remaining ${Math.round(kmLeft)} km.</div></div>`;
+  } else {
+    verdictEl.innerHTML=`<div class="verdict danger"><div class="v-icon">✗</div><div class="v-title">Not enough fuel</div><div class="v-sub">Need ${shortfall.toFixed(1)} L more. Current fuel only covers ${Math.round(canGoKm)} km.</div></div>`;
+  }
+
+  // Price card in tracker
+  const pCardEl=document.getElementById('trk-price-card');
+  if (!hasEnough && kmLeft>0) {
+    pCardEl.innerHTML=priceCardHTML(shortfall, 'Cost to top up for remaining km');
+  } else { pCardEl.innerHTML=''; }
+
+  document.getElementById('trk-dashboard').style.display='block';
+  saveLiveState();
+}
+
+function resetTrip() {
+  if (!confirm('End this trip and clear all tracking data?')) return;
+  tripData=null;
+  try {
+    localStorage.removeItem('tripData');
+    localStorage.removeItem('tripLiveState');
+  } catch(e){}
+  // Clear all setup inputs
+  ['trk-total-km','trk-mileage','trk-tank','trk-start-odo','trk-cur-odo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  // Reset bars
+  setBarValue('trks',100); setBarValue('trkc',100);
+  // Clear dashboard content so stale data doesn't flash on next trip
+  const grid=document.getElementById('trk-stat-grid'); if(grid) grid.innerHTML='';
+  const verdict=document.getElementById('trk-verdict'); if(verdict) verdict.innerHTML='';
+  const pcard=document.getElementById('trk-price-card'); if(pcard) pcard.innerHTML='';
+  hideTrackerLive();
+}
+
+// ─── INIT ────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const allBars=['bt','br2','bpk','brg','ct','cr2','cpk','crg','trks','trkc'];
+  allBars.forEach(id=>{ const el=document.getElementById(id+'-bar'); if(el) initBar(el); });
+
+  // Restore price & fuel type
+  try {
+    const savedPrice=localStorage.getItem('fuelPrice');
+    const savedType=localStorage.getItem('fuelType');
+    if (savedPrice) document.getElementById('global-price').value=savedPrice;
+    if (savedType)  setFuelType(savedType, null);
+  } catch(e){}
+
+  // Restore trip
+  try {
+    const saved=localStorage.getItem('tripData');
+    if (saved) {
+      tripData=JSON.parse(saved);
+      const d=tripData;
+      document.getElementById('trk-total-km').value=d.totalKm;
+      document.getElementById('trk-mileage').value=d.mileage;
+      document.getElementById('trk-tank').value=d.tank;
+      document.getElementById('trk-start-odo').value=d.startOdo;
+      setBarValue('trks',d.startFuelPct);
+      // Restore live state (current odo + fuel level mid-trip)
+      const savedLive=localStorage.getItem('tripLiveState');
+      if (savedLive) {
+        const live=JSON.parse(savedLive);
+        document.getElementById('trk-cur-odo').value=isNaN(live.curOdo)?d.startOdo:live.curOdo;
+        setBarValue('trkc', live.curFuelPct??d.startFuelPct);
+      } else {
+        document.getElementById('trk-cur-odo').value=d.startOdo;
+        setBarValue('trkc', d.startFuelPct);
+      }
+      showTrackerLive();
+      updateTracking();
+    }
+  } catch(e){}
+});
+</script>
+</body>
+</html>
